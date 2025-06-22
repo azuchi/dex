@@ -490,10 +490,12 @@ func (s *Server) getDeveloperClient(clientID string) (cli storage.Client, err er
 	}
 
 	q := `
-	query describeLicense($clientId: String!) {
+	query describeLicense($clientId: Address!) {
 		developerLicense(by: {clientId: $clientId}) {
 			redirectURIs(first: 10) {
-				uri
+				nodes {
+					uri
+				}
 			}
 		}
 	}

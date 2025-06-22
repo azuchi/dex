@@ -1,16 +1,20 @@
 package sql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/dexidp/dex/storage"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // TODO(ericchiang): The update, insert, and select methods queries are all
@@ -543,12 +547,95 @@ func (c *conn) CreateClient(ctx context.Context, cli storage.Client) error {
 	return nil
 }
 
+func getDeveloperClient(clientID string) (cli storage.Client, err error) {
+	mca, err := common.NewMixedcaseAddressFromString(clientID)
+	if err != nil {
+		return cli, err
+	}
+
+	if !mca.ValidChecksum() {
+		return cli, fmt.Errorf("address not checksummed")
+	}
+
+	q := `
+	query describeLicense($clientId: Address!) {
+		developerLicense(by: {clientId: $clientId}) {
+			redirectURIs(first: 10) {
+				nodes {
+					uri
+				}
+			}
+		}
+	}
+	`
+
+	m := map[string]any{
+		"query": q,
+		"variables": map[string]any{
+			"clientId": clientID,
+		},
+	}
+
+	type Resp struct {
+		Data *struct {
+			DeveloperLicense struct {
+				RedirectURIs struct {
+					Nodes []struct {
+						URI string `json:"uri"`
+					} `json:"nodes"`
+				} `json:"redirectURIs"`
+			} `json:"developerLicense"`
+		} `json:"data"`
+	}
+
+	req, err := json.Marshal(m)
+	if err != nil {
+		return cli, err
+	}
+
+	res, err := http.Post("https://identity-api.dimo.zone/query", "application/json", bytes.NewBuffer(req))
+	if err != nil {
+		return cli, err
+	}
+
+	resBody, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return cli, err
+	}
+
+	var r Resp
+	err = json.Unmarshal(resBody, &r)
+	if err != nil {
+		return cli, err
+	}
+
+	if r.Data == nil {
+		return cli, fmt.Errorf("couldn't find developer license")
+	}
+
+	uris := make([]string, len(r.Data.DeveloperLicense.RedirectURIs.Nodes))
+	for i, u := range r.Data.DeveloperLicense.RedirectURIs.Nodes {
+		uris[i] = u.URI
+	}
+
+	return storage.Client{
+		ID:           clientID,
+		RedirectURIs: uris,
+		Public:       true,
+	}, nil
+}
+
 func getClient(q querier, id string) (storage.Client, error) {
-	return scanClient(q.QueryRow(`
+	client, err := scanClient(q.QueryRow(`
 		select
 			id, secret, redirect_uris, trusted_peers, public, name, logo_url
 	    from client where id = $1;
 	`, id))
+	if err == storage.ErrNotFound {
+		return getDeveloperClient(id)
+	}
+	return client, nil
 }
 
 func (c *conn) GetClient(id string) (storage.Client, error) {

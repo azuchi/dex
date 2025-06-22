@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -22,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-jose/go-jose/v4"
 
 	"github.com/dexidp/dex/connector"
@@ -479,85 +477,6 @@ func (s *Server) newIDToken(ctx context.Context, clientID string, claims storage
 	return idToken, expiry, nil
 }
 
-func (s *Server) getDeveloperClient(clientID string) (cli storage.Client, err error) {
-	mca, err := common.NewMixedcaseAddressFromString(clientID)
-	if err != nil {
-		return cli, err
-	}
-
-	if !mca.ValidChecksum() {
-		return cli, fmt.Errorf("address not checksummed")
-	}
-
-	q := `
-	query describeLicense($clientId: Address!) {
-		developerLicense(by: {clientId: $clientId}) {
-			redirectURIs(first: 10) {
-				nodes {
-					uri
-				}
-			}
-		}
-	}
-	`
-
-	m := map[string]any{
-		"query": q,
-		"variables": map[string]any{
-			"clientId": clientID,
-		},
-	}
-
-	type Resp struct {
-		Data *struct {
-			DeveloperLicense struct {
-				RedirectURIs struct {
-					Nodes []struct {
-						URI string `json:"uri"`
-					} `json:"nodes"`
-				} `json:"redirectURIs"`
-			} `json:"developerLicense"`
-		} `json:"data"`
-	}
-
-	req, err := json.Marshal(m)
-	if err != nil {
-		return cli, err
-	}
-
-	res, err := http.Post("https://identity-api.dimo.zone/query", "application/json", bytes.NewBuffer(req))
-	if err != nil {
-		return cli, err
-	}
-
-	resBody, err := io.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		return cli, err
-	}
-
-	var r Resp
-	err = json.Unmarshal(resBody, &r)
-	if err != nil {
-		return cli, err
-	}
-
-	if r.Data == nil {
-		return cli, fmt.Errorf("couldn't find developer license")
-	}
-
-	uris := make([]string, len(r.Data.DeveloperLicense.RedirectURIs.Nodes))
-	for i, u := range r.Data.DeveloperLicense.RedirectURIs.Nodes {
-		uris[i] = u.URI
-	}
-
-	return storage.Client{
-		ID:           clientID,
-		RedirectURIs: uris,
-		Public:       true,
-	}, nil
-}
-
 // parse the initial request from the OAuth2 client.
 func (s *Server) parseAuthorizationRequest(r *http.Request) (*storage.AuthRequest, error) {
 	if err := r.ParseForm(); err != nil {
@@ -587,10 +506,7 @@ func (s *Server) parseAuthorizationRequest(r *http.Request) (*storage.AuthReques
 	client, err := s.storage.GetClient(clientID)
 	if err != nil {
 		if err == storage.ErrNotFound {
-			client, err = s.getDeveloperClient(clientID)
-			if err != nil {
-				return nil, newDisplayedErr(http.StatusNotFound, "Invalid client_id (%q).", clientID)
-			}
+			return nil, newDisplayedErr(http.StatusNotFound, "Invalid client_id (%q).", clientID)
 		} else {
 			s.logger.ErrorContext(r.Context(), "failed to get client", "err", err)
 			return nil, newDisplayedErr(http.StatusInternalServerError, "Database error.")

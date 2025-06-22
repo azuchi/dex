@@ -610,13 +610,16 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 		return cli, err
 	}
 
+	// TODO(elffjs): Check the status code, too.
+
 	var r Resp
 	err = json.Unmarshal(resBody, &r)
 	if err != nil {
 		return cli, err
 	}
 
-	// TODO(elffjs): Check the GraphQL error.
+	// TODO(elffjs): Check the GraphQL error. Say something different if it's an internal error
+	// or some such thing. The only two cases that are dispositive are success and NOT_FOUND.
 	if r.Data == nil {
 		return cli, fmt.Errorf("couldn't find developer license")
 	}

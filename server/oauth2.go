@@ -507,10 +507,9 @@ func (s *Server) parseAuthorizationRequest(r *http.Request) (*storage.AuthReques
 	if err != nil {
 		if err == storage.ErrNotFound {
 			return nil, newDisplayedErr(http.StatusNotFound, "Invalid client_id (%q).", clientID)
-		} else {
-			s.logger.ErrorContext(r.Context(), "failed to get client", "err", err)
-			return nil, newDisplayedErr(http.StatusInternalServerError, "Database error.")
 		}
+		s.logger.ErrorContext(r.Context(), "failed to get client", "err", err)
+		return nil, newDisplayedErr(http.StatusInternalServerError, "Database error.")
 	}
 
 	if !validateRedirectURI(client, redirectURI) {

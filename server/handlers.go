@@ -833,7 +833,6 @@ func (s *Server) withClientFromStorage(w http.ResponseWriter, r *http.Request, h
 		if err != storage.ErrNotFound {
 			s.logger.ErrorContext(r.Context(), "failed to get client", "err", err)
 			s.tokenErrHelper(w, errServerError, "", http.StatusInternalServerError)
-			return
 		} else {
 			s.tokenErrHelper(w, errInvalidClient, "Invalid client credentials.", http.StatusUnauthorized)
 		}

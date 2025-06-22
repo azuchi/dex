@@ -547,7 +547,10 @@ func (c *conn) CreateClient(ctx context.Context, cli storage.Client) error {
 	return nil
 }
 
+// TODO(elffjs): Documentation
 func getDeveloperClient(clientID string) (cli storage.Client, err error) {
+	// TODO(elffjs): Better errors here. In particular, distinguish between
+	// the client not existing versus a dependency being unavailable.
 	mca, err := common.NewMixedcaseAddressFromString(clientID)
 	if err != nil {
 		return cli, err
@@ -557,6 +560,8 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 		return cli, fmt.Errorf("address not checksummed")
 	}
 
+	// TODO(elffjs): Handle the case of more than 10 redirects.
+	// Maybe a new, singular "redirectURI" subquery?
 	q := `
 	query describeLicense($clientId: Address!) {
 		developerLicense(by: {clientId: $clientId}) {
@@ -593,6 +598,7 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 		return cli, err
 	}
 
+	// TODO(elffjs): Load the GraphQL endpoint from config.
 	res, err := http.Post("https://identity-api.dimo.zone/query", "application/json", bytes.NewBuffer(req))
 	if err != nil {
 		return cli, err
@@ -610,6 +616,7 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 		return cli, err
 	}
 
+	// TODO(elffjs): Check the GraphQL error.
 	if r.Data == nil {
 		return cli, fmt.Errorf("couldn't find developer license")
 	}

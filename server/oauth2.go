@@ -554,6 +554,7 @@ func (s *Server) getDeveloperClient(clientID string) (cli storage.Client, err er
 	return storage.Client{
 		ID:           clientID,
 		RedirectURIs: uris,
+		Public:       true,
 	}, nil
 }
 

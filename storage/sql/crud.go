@@ -548,6 +548,14 @@ func (c *conn) CreateClient(ctx context.Context, cli storage.Client) error {
 	return nil
 }
 
+// getDeveloperClient retrieves a developer client from the GraphQL API using the provided client ID.
+//
+// Parameters:
+// - clientID: A string representing the Ethereum address of the client.
+//
+// Returns:
+// - A storage.Client object containing the client details, including redirect URIs.
+// - An error if the client ID is invalid, the API request fails, or the response contains errors.
 func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 	// Validate the client ID as a mixed-case Ethereum address.
 	mca, err := common.NewMixedcaseAddressFromString(clientID)

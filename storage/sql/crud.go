@@ -572,7 +572,7 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 	q := `
 	query describeLicense($clientId: Address!) {
 		developerLicense(by: {clientId: $clientId}) {
-			redirectURIs(first: 100) {  // Fetch up to 100 URIs
+			redirectURIs(first: 100) { 
 				nodes {
 					uri
 				}

@@ -97,7 +97,7 @@ func TestGetDeveloperClient(t *testing.T) {
 		{
 			name:          "Invalid ClientID Error",
 			clientID:      "0xInvalidClientID",
-			expectedError: "invalid client ID: invalid address",
+			expectedError: "invalid client ID: 0xInvalidClientID invalid address",
 		},
 		{
 			name:     "Missing Data",

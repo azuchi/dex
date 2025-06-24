@@ -560,7 +560,7 @@ func getDeveloperClient(clientID string) (cli storage.Client, err error) {
 	// Validate the client ID as a mixed-case Ethereum address.
 	mca, err := common.NewMixedcaseAddressFromString(clientID)
 	if err != nil {
-		return cli, fmt.Errorf("invalid client ID: %w", err)
+		return cli, fmt.Errorf("invalid client ID: %s %w", clientID, err)
 	}
 
 	if !mca.ValidChecksum() {
